@@ -7,7 +7,7 @@ import (
 )
 
 // TODO use io.File instead of String
-// TODO handle Unicode
+// TODO handle Unicode (haha nice joke)
 
 type Parser struct {
 	text string
@@ -76,12 +76,12 @@ func Conjunction(wrapper ConjunctionWrapper, functions ...TryFunc) TryFunc {
 		newCursor := cursor
 		nodes := []Node{}
 		for _, f := range functions {
-			token, _cursor, err := f(parser, newCursor)
+			node, _cursor, err := f(parser, newCursor)
 			if err != nil {
 				return nil, cursor, err
 			}
 			newCursor = _cursor
-			nodes = append(nodes, token)
+			nodes = append(nodes, node)
 		}
 		return wrapper(nodes), newCursor, nil
 	}
@@ -96,11 +96,11 @@ func Disjunction(wrapper DisjunctionWrapper, functions ...TryFunc) TryFunc {
 		var bestNode Node
 		bestCursor := -1
 		for _, f := range functions {
-			token, newCursor, err := f(parser, cursor)
+			node, newCursor, err := f(parser, cursor)
 			if err == nil {
 				if newCursor > bestCursor {
 					bestCursor = newCursor
-					bestNode = token
+					bestNode = node
 				}
 			}
 		}
@@ -132,7 +132,7 @@ func Identifier(parser *Parser, cursor int) (Node, int, error) {
 	return IdentifierNode{string(first) + rest}, newCursor + len(rest), nil
 }
 
-// shared by Keyword and Symbol
+// shared by Keyword and Char
 func tryString(p *Parser, cursor int, str string) (int, error) {
 	cursor = p.findNonWhiteSpace(cursor)
 	l := len(p.text)
@@ -152,13 +152,13 @@ func Keyword(str string) TryFunc {
 	}
 }
 
-func Symbol(str string) TryFunc {
+func Char(str string) TryFunc {
 	return func(parser *Parser, cursor int) (Node, int, error) {
 		newCursor, err := tryString(parser, cursor, str)
 		if err != nil {
-			return nil, newCursor, NotMatchError("Symbol")
+			return nil, newCursor, NotMatchError("Char")
 		}
-		return SymbolNode{str}, newCursor, nil
+		return CharNode{str}, newCursor, nil
 	}
 }
 
@@ -210,7 +210,7 @@ func ArgDeclWrapper(nodes []Node) Node {
 	return ArgDeclNode{declName, declType}
 }
 
-var ArgDecl = Conjunction(ArgDeclWrapper, Identifier, Symbol(":"), Identifier)
+var ArgDecl = Conjunction(ArgDeclWrapper, Identifier, Char(":"), Identifier)
 
 func Node2ArgListNode(node Node) Node {
 	list := []ArgDeclNode{}
@@ -257,7 +257,7 @@ func ArgList(parser *Parser, cursor int) (Node, int, error) {
 
 	return Disjunction(
 		Node2ArgListNode,
-		Conjunction(ArgListWrapper, ArgDecl, Symbol(","), ArgList),
+		Conjunction(ArgListWrapper, ArgDecl, Char(","), ArgList),
 		ArgDecl,
 		Empty,
 	)(parser, cursor)
@@ -281,10 +281,10 @@ func FunctionDef(parser *Parser, cursor int) (Node, int, error) {
 	return Conjunction(
 		FunctionDefWrapper,
 		Keyword("function"), Identifier,
-		Symbol("("), ArgList, Symbol(")"),
-		Symbol("{"),
+		Char("("), ArgList, Char(")"),
+		Char("{"),
 		TryBlock,
-		Symbol("}"),
+		Char("}"),
 	)(parser, cursor)
 }
 
@@ -321,7 +321,7 @@ func ParamList(parser *Parser, cursor int) (Node, int, error) {
 		Node2ParamListNode,
 		Conjunction(
 			ParamListWrapper,
-			Expression, Symbol(","), ParamList,
+			Expression, Char(","), ParamList,
 		),
 		Expression,
 		Empty,
@@ -343,7 +343,7 @@ func FunctionCallWrapper(nodes []Node) Node {
 func FunctionCall(parser *Parser, cursor int) (Node, int, error) {
 	return Conjunction(
 		FunctionCallWrapper,
-		Identifier, Symbol("("), ParamList, Symbol(")"),
+		Identifier, Char("("), ParamList, Char(")"),
 	)(parser, cursor)
 }
 
@@ -357,18 +357,17 @@ func Literal(parser *Parser, cursor int) (Node, int, error) {
 
 var BinaryOperator = Disjunction(
 	identity,
-	Symbol("+"),
-	Symbol("-"),
-	Symbol("*"),
-	Symbol("/"),
-	Symbol("="),
+	Char("+"),
+	Char("-"),
+	Char("*"),
+	Char("/"),
 )
 
 func BinaryOperatorWrapper(nodes []Node) Node {
 	if len(nodes) != 3 {
 		panic(fmt.Sprintf("Should have 3 nodes: %v", nodes))
 	}
-	operator, ok := nodes[1].(SymbolNode)
+	operator, ok := nodes[1].(CharNode)
 
 	if !ok {
 		panic("Typecasting failure")
@@ -376,7 +375,7 @@ func BinaryOperatorWrapper(nodes []Node) Node {
 	return BinaryOperatorNode{nodes[0], operator, nodes[2]}
 }
 
-func ExpressionWrapper(nodes []Node) Node {
+func BracketExpressionWrapper(nodes []Node) Node {
 	if len(nodes) != 3 {
 		panic(fmt.Sprintf("Should have 3 nodes: %v", nodes))
 	}
@@ -394,11 +393,24 @@ func Expression(parser *Parser, cursor int) (Node, int, error) {
 	)(parser, cursor)
 }
 
+func AssignmentWrapper(nodes []Node) Node {
+	if len(nodes) != 3 {
+		panic(fmt.Sprintf("Should have 3 nodes: %v", nodes))
+	}
+	id, ok := nodes[0].(IdentifierNode)
+	if !ok {
+		panic("Typecasting failure")
+	}
+
+	return AssignmentNode{id, nodes[2]}
+}
+
 // prevents left recursion
 func GuardedExpression(parser *Parser, cursor int) (Node, int, error) {
 	return Disjunction(
 		identity,
-		Conjunction(ExpressionWrapper, Symbol("("), Expression, Symbol(")")),
+		Conjunction(BracketExpressionWrapper, Char("("), Expression, Char(")")),
+		Conjunction(AssignmentWrapper, Identifier, Char("="), Expression),
 		Literal,
 		Identifier,
 		FunctionDef,
@@ -416,8 +428,8 @@ func BlockWrapper(nodes []Node) Node {
 	}
 	newList := []Node{}
 	newList = append(newList, nodes[0])
-	for _, token := range tail.ExprList {
-		newList = append(newList, token)
+	for _, node := range tail.ExprList {
+		newList = append(newList, node)
 	}
 	return BlockNode{newList}
 }

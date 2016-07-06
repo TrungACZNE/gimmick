@@ -14,7 +14,7 @@ func main() {
 	log.SetFlags(0)
 
 	app := cli.NewApp()
-	app.Name = "Unnamed language interpreter"
+	app.Name = "Gimmick interpreter/compiler"
 	app.Usage = "./interpreter --file <filename>"
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
@@ -24,7 +24,7 @@ func main() {
 		},
 	}
 	app.Action = func(c *cli.Context) {
-		file := cli.StringFlag("file")
+		file := c.String("file")
 		if file == "" {
 			log.Println("Please specify a filename")
 		}

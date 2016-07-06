@@ -5,18 +5,18 @@ import (
 	"testing"
 )
 
-func testWrapper(tokens []Node) Node {
-	if len(tokens) != 2 {
-		panic(fmt.Sprintf("Should have 2 tokens: %v", tokens))
+func testWrapper(nodes []Node) Node {
+	if len(nodes) != 2 {
+		panic(fmt.Sprintf("Should have 2 nodes: %v", nodes))
 	}
-	return tokens[0]
+	return nodes[0]
 }
 
 func pass(t *testing.T, funcName string, tryFunc TryFunc, text string) {
 	tryFunc = Conjunction(testWrapper, tryFunc, EndOfFile)
 	parser := NewParser(text)
-	tokens, _, err := tryFunc(parser, 0)
-	fmt.Println(tokens)
+	nodes, _, err := tryFunc(parser, 0)
+	fmt.Println(nodes)
 	if err != nil {
 		t.Errorf("Should not fail: %s(\"%s\") - %s", funcName, text, err)
 	}
@@ -25,9 +25,9 @@ func pass(t *testing.T, funcName string, tryFunc TryFunc, text string) {
 func fail(t *testing.T, funcName string, tryFunc TryFunc, text string) {
 	tryFunc = Conjunction(testWrapper, tryFunc, EndOfFile)
 	parser := NewParser(text)
-	tokens, _, err := tryFunc(parser, 0)
+	nodes, _, err := tryFunc(parser, 0)
 	if err == nil {
-		t.Errorf("Should not succeed: %s - %v", funcName, tokens)
+		t.Errorf("Should not succeed: %s - %v", funcName, nodes)
 	}
 }
 
@@ -42,7 +42,7 @@ func TestGeneral(t *testing.T) {
 	pass(t, "FloatLiteral", FloatLiteral, ".02")
 
 	pass(t, "Keyword", Keyword("function"), "function")
-	fail(t, "Symbol", Symbol("function"), "fart()")
+	fail(t, "Char", Char("function"), "fart()")
 
 	pass(t, "Disjunction", Disjunction(
 		identity,
@@ -77,4 +77,5 @@ func TestGeneral(t *testing.T) {
 
 	pass(t, "Expression", Expression, "name = myfunc(100, 200) + 588 * (x + 2)")
 	pass(t, "Expression", Expression, "1 + 1")
+	fail(t, "Expression", Expression, "(100 + 200) = myfunc")
 }

@@ -1,16 +1,12 @@
 package parser
 
-import "github.com/trungaczne/language/vm"
+import . "github.com/trungaczne/gimmick/vm"
 
 /* --- AST Node definitions ---*/
 
 type Node interface {
 	String() string
-	CodeGen(stream *CodeStream)
-}
-
-type CodeStream interface {
-	Push(instruction vm.Instruction)
+	CodeGen(builder CodeBuilder)
 }
 
 type EOFNode struct {
@@ -31,7 +27,7 @@ type KeywordNode struct {
 	Name string
 }
 
-type SymbolNode struct {
+type CharNode struct {
 	Name string
 }
 
@@ -65,8 +61,13 @@ type FunctionCallNode struct {
 
 type BinaryOperatorNode struct {
 	Left     Node
-	Operator SymbolNode
+	Operator CharNode
 	Right    Node
+}
+
+type AssignmentNode struct {
+	Dest IdentifierNode
+	Expr Node
 }
 
 type BlockNode struct {

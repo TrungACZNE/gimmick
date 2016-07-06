@@ -24,8 +24,8 @@ func (node KeywordNode) String() string {
 	return fmt.Sprintf("<Keyword:%s>", node.Name)
 }
 
-func (node SymbolNode) String() string {
-	return fmt.Sprintf("<Symbol:%s>", node.Name)
+func (node CharNode) String() string {
+	return fmt.Sprintf("<Char:%s>", node.Name)
 }
 
 func (node IdentifierNode) String() string {
@@ -68,6 +68,10 @@ func (node FunctionCallNode) String() string {
 
 func (node BinaryOperatorNode) String() string {
 	return fmt.Sprintf("<BinaryOperatorNode:%s:%s:%s>", node.Left.String(), node.Operator.String(), node.Right.String())
+}
+
+func (node AssignmentNode) String() string {
+	return fmt.Sprintf("<AssignmentNode:%s:%s>", node.Dest.String(), node.Expr.String())
 }
 
 func (node BlockNode) String() string {
