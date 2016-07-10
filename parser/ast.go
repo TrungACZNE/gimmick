@@ -2,25 +2,21 @@ package parser
 
 import . "github.com/trungaczne/gimmick/vm"
 
-/* --- AST Token definitions ---*/
-
 type Token interface {
+}
+
+type Node interface {
+	Token
 	String() string
 	CodeGen(builder CodeBuilder)
 }
+
+/* --- Tokens ---*/
 
 type EOFToken struct {
 }
 
 type EmptyToken struct {
-}
-
-type IntegerLiteralToken struct {
-	Value int64
-}
-
-type FloatLiteralToken struct {
-	Value float64
 }
 
 type KeywordToken struct {
@@ -31,13 +27,9 @@ type CharToken struct {
 	Name string
 }
 
-type IdentifierToken struct {
-	Name string
-}
-
 type ArgDeclToken struct {
-	NameToken IdentifierToken
-	TypeToken IdentifierToken
+	NameToken IdentifierNode
+	TypeToken IdentifierNode
 }
 
 type ArgListToken struct {
@@ -45,31 +37,45 @@ type ArgListToken struct {
 }
 
 type ParamListToken struct {
-	ParamList []Token
+	ParamList []Node
 }
 
-type FunctionDefToken struct {
-	Name    IdentifierToken
-	ArgList ArgListToken
-	Block   BlockToken
+/* --- Nodes ---*/
+
+type IntegerLiteralNode struct {
+	Value int64
 }
 
-type FunctionCallToken struct {
-	Name      IdentifierToken
-	ParamList ParamListToken
+type FloatLiteralNode struct {
+	Value float64
 }
 
-type BinaryOperatorToken struct {
-	Left     Token
-	Operator CharToken
-	Right    Token
+type IdentifierNode struct {
+	Name string
 }
 
-type AssignmentToken struct {
-	Dest IdentifierToken
-	Expr Token
+type FunctionDefNode struct {
+	Name    string
+	ArgList []NameType
+	Block   BlockNode
 }
 
-type BlockToken struct {
-	ExprList []Token
+type FunctionCallNode struct {
+	Name      string
+	ParamList []Node
+}
+
+type BinaryOperatorNode struct {
+	Left     Node
+	Operator string
+	Right    Node
+}
+
+type AssignmentNode struct {
+	Dest string
+	Expr Node
+}
+
+type BlockNode struct {
+	ExprList []Node
 }

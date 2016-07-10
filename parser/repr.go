@@ -1,50 +1,59 @@
 package parser
 
+import . "github.com/trungaczne/gimmick/vm"
 import "fmt"
+
+func NodeArrString(nodes []Node) string {
+	buf := "["
+	for i, node := range nodes {
+		buf += node.String()
+		if i != len(nodes)-1 {
+			buf += ","
+		}
+	}
+	return buf + "]"
+}
+
+func NameTypeArrString(nt []NameType) string {
+	buf := "["
+	for i, nametype := range nt {
+		buf += nametype.Name + ":" + nametype.Type
+		if i != len(nt)-1 {
+			buf += ","
+		}
+	}
+	return buf + "]"
+}
+
+func PrettyPrint(str string, indentWidth int) string {
+	curIndent := 0
+	buf := ""
+	for _, c := range str {
+		if c == '{' {
+			curIndent += indentWidth
+			buf += string(c) + "\n" + fmt.Sprintf(fmt.Sprintf("%%%ds", curIndent), " ")
+		} else if c == '}' {
+			curIndent -= indentWidth
+			buf += "\n" + fmt.Sprintf(fmt.Sprintf("%%%ds", curIndent), " ") + string(c)
+		} else {
+			buf += string(c)
+		}
+	}
+	return buf
+}
 
 /* --- String representation of AST tokens --- */
 
-func (token EOFToken) String() string {
-	return "<EOF>"
+func (token IdentifierNode) String() string {
+	return fmt.Sprintf("{Identifier:%s}", token.Name)
 }
 
-func (token EmptyToken) String() string {
-	return "<Empty>"
+func (token IntegerLiteralNode) String() string {
+	return fmt.Sprintf("{Int:%d}", token.Value)
 }
 
-func (token IntegerLiteralToken) String() string {
-	return fmt.Sprintf("<Int:%d>", token.Value)
-}
-
-func (token FloatLiteralToken) String() string {
-	return fmt.Sprintf("<Int:%v>", token.Value)
-}
-
-func (token KeywordToken) String() string {
-	return fmt.Sprintf("<Keyword:%s>", token.Name)
-}
-
-func (token CharToken) String() string {
-	return fmt.Sprintf("<Char:%s>", token.Name)
-}
-
-func (token IdentifierToken) String() string {
-	return fmt.Sprintf("<Identifier:%s>", token.Name)
-}
-
-func (token ArgDeclToken) String() string {
-	return fmt.Sprintf("<ArgDecl:%s:%s>", token.NameToken, token.TypeToken)
-}
-
-func (token ArgListToken) String() string {
-	buf := ""
-	for i, token := range token.ArgDecl {
-		if i > 0 {
-			buf += ", "
-		}
-		buf += token.String()
-	}
-	return fmt.Sprintf("<ArgList:%s>", buf)
+func (token FloatLiteralNode) String() string {
+	return fmt.Sprintf("{Int:%v}", token.Value)
 }
 
 func (token ParamListToken) String() string {
@@ -55,26 +64,26 @@ func (token ParamListToken) String() string {
 		}
 		buf += token.String()
 	}
-	return fmt.Sprintf("<ParamList:%s>", buf)
+	return fmt.Sprintf("{ParamList:%s}", buf)
 }
 
-func (token FunctionDefToken) String() string {
-	return fmt.Sprintf("<FunctionDef:%s:%s:%s>", token.Name.String(), token.ArgList.String(), token.Block.String())
+func (token FunctionDefNode) String() string {
+	return fmt.Sprintf("{FunctionDef:%s:%s:%s}", token.Name, NameTypeArrString(token.ArgList), token.Block.String())
 }
 
-func (token FunctionCallToken) String() string {
-	return fmt.Sprintf("<FunctionCall:%s:%s>", token.Name.String(), token.ParamList.String())
+func (token FunctionCallNode) String() string {
+	return fmt.Sprintf("{FunctionCall:%s:%s}", token.Name, token.ParamList)
 }
 
-func (token BinaryOperatorToken) String() string {
-	return fmt.Sprintf("<BinaryOperatorToken:%s:%s:%s>", token.Left.String(), token.Operator.String(), token.Right.String())
+func (token BinaryOperatorNode) String() string {
+	return fmt.Sprintf("{BinaryOperatorNode:%s:%s:%s}", token.Left.String(), token.Operator, token.Right.String())
 }
 
-func (token AssignmentToken) String() string {
-	return fmt.Sprintf("<AssignmentToken:%s:%s>", token.Dest.String(), token.Expr.String())
+func (token AssignmentNode) String() string {
+	return fmt.Sprintf("{AssignmentNode:%s:%s}", token.Dest, token.Expr.String())
 }
 
-func (token BlockToken) String() string {
+func (token BlockNode) String() string {
 	buf := ""
 	for i, token := range token.ExprList {
 		if i > 0 {
@@ -82,5 +91,5 @@ func (token BlockToken) String() string {
 		}
 		buf += token.String()
 	}
-	return fmt.Sprintf("<BlockToken:%s>", buf)
+	return fmt.Sprintf("{BlockNode:%s}", NodeArrString(token.ExprList))
 }

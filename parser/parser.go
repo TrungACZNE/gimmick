@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"regexp"
 	"strconv"
+
+	. "github.com/trungaczne/gimmick/vm"
 )
 
 // TODO use io.File instead of String
@@ -17,9 +19,7 @@ func NewParser(text string) *Parser {
 	return &Parser{text: text}
 }
 
-func isWhiteSpace(c byte) bool {
-	return c == ' ' || c == '\n' || c == '\t'
-}
+/* --- Errors --- */
 
 type EOFError int
 
@@ -33,6 +33,11 @@ func (err NotMatchError) Error() string {
 	return fmt.Sprintf("Could not match type: " + string(err))
 }
 
+func isWhiteSpace(c byte) bool {
+	return c == ' ' || c == '\n' || c == '\t'
+}
+
+/* --- Parser routines --- */
 // finds the next non whitespace character position
 // returns -1 if none could be found
 func (p *Parser) findNonWhiteSpace(cursor int) int {
@@ -56,26 +61,17 @@ func (p *Parser) fetch(cursor int) (byte, int, error) {
 	return p.text[pos], pos + 1, nil
 }
 
+/* --- Routines to build matchers --- */
 type TryFunc func(parser *Parser, cursor int) (Token, int, error)
 
-func EndOfFile(parser *Parser, cursor int) (Token, int, error) {
-	_, newCursor, err := parser.fetch(cursor)
-	if _, ok := err.(EOFError); ok {
-		return EOFToken{}, newCursor, nil
-	}
-	return nil, cursor, NotMatchError("EOF")
-}
+// MatchAllWrapper convert an array of token into a single token
+type MatchAllWrapper func(tokens []Token) Token
 
-var EmptyFile = EndOfFile
-
-// ConjunctionWrapper convert an array of token into a single token
-type ConjunctionWrapper func(tokens []Token) Token
-
-func Conjunction(wrapper ConjunctionWrapper, functions ...TryFunc) TryFunc {
+func MatchAll(wrapper MatchAllWrapper, defs ...TryFunc) TryFunc {
 	return func(parser *Parser, cursor int) (Token, int, error) {
 		newCursor := cursor
 		tokens := []Token{}
-		for _, f := range functions {
+		for _, f := range defs {
 			token, _cursor, err := f(parser, newCursor)
 			if err != nil {
 				return nil, cursor, err
@@ -87,15 +83,15 @@ func Conjunction(wrapper ConjunctionWrapper, functions ...TryFunc) TryFunc {
 	}
 }
 
-// Disjunction can take multiple paths, which may return different
+// MatchOneOf can take multiple paths, which may return different
 // token types. The wrapper's job is to cast them all back 1 type
-type DisjunctionWrapper func(token Token) Token
+type MatchOneOfWrapper func(token Token) Token
 
-func Disjunction(wrapper DisjunctionWrapper, functions ...TryFunc) TryFunc {
+func MatchOneOf(wrapper MatchOneOfWrapper, defs ...TryFunc) TryFunc {
 	return func(parser *Parser, cursor int) (Token, int, error) {
 		var bestToken Token
 		bestCursor := -1
-		for _, f := range functions {
+		for _, f := range defs {
 			token, newCursor, err := f(parser, cursor)
 			if err == nil {
 				if newCursor > bestCursor {
@@ -107,15 +103,9 @@ func Disjunction(wrapper DisjunctionWrapper, functions ...TryFunc) TryFunc {
 		if bestCursor > -1 {
 			return wrapper(bestToken), bestCursor, nil
 		}
-		return nil, cursor, NotMatchError("Disjunction")
+		return nil, cursor, NotMatchError("MatchOneOf")
 	}
 }
-
-func TryEmpty(parser *Parser, cursor int) (Token, int, error) {
-	return EmptyToken{}, cursor, nil
-}
-
-var Empty = TryEmpty
 
 var REG_IDENTIFIER_INITIAL = regexp.MustCompile("[_a-zA-Z]")
 var REG_IDENTIFIER = regexp.MustCompile("^[_a-zA-Z0-9]+")
@@ -126,10 +116,10 @@ func Identifier(parser *Parser, cursor int) (Token, int, error) {
 		return nil, cursor, NotMatchError("Identifier")
 	}
 	if newCursor == len(parser.text) {
-		return IdentifierToken{string(first)}, newCursor, nil
+		return IdentifierNode{string(first)}, newCursor, nil
 	}
 	rest := REG_IDENTIFIER.FindString(parser.text[newCursor:len(parser.text)])
-	return IdentifierToken{string(first) + rest}, newCursor + len(rest), nil
+	return IdentifierNode{string(first) + rest}, newCursor + len(rest), nil
 }
 
 // shared by Keyword and Char
@@ -142,75 +132,39 @@ func tryString(p *Parser, cursor int, str string) (int, error) {
 	return cursor + len(str), nil
 }
 
-func Keyword(str string) TryFunc {
+func keyword(str string) TryFunc {
 	return func(parser *Parser, cursor int) (Token, int, error) {
 		newCursor, err := tryString(parser, cursor, str)
 		if err != nil {
-			return nil, newCursor, NotMatchError("Keyword")
+			return nil, newCursor, NotMatchError("keyword")
 		}
 		return KeywordToken{str}, newCursor, nil
 	}
 }
 
-func Char(str string) TryFunc {
+func char(str string) TryFunc {
 	return func(parser *Parser, cursor int) (Token, int, error) {
 		newCursor, err := tryString(parser, cursor, str)
 		if err != nil {
-			return nil, newCursor, NotMatchError("Char")
+			return nil, newCursor, NotMatchError("char")
 		}
 		return CharToken{str}, newCursor, nil
 	}
 }
 
-// TODO FIX THESE REGEXES
-var REG_INTEGER_LITERAL = regexp.MustCompile("[0-9]*")
-var REG_FLOAT_LITERAL = regexp.MustCompile("[0-9]*\\.[0-9]*")
-
-func IntegerLiteral(parser *Parser, cursor int) (Token, int, error) {
-	cursor = parser.findNonWhiteSpace(cursor)
-	if cursor == -1 || cursor >= len(parser.text) {
-		return nil, cursor, NotMatchError("IntegerLiteral")
-	}
-	literal := REG_INTEGER_LITERAL.FindString(parser.text[cursor:len(parser.text)])
-	if literal == "" {
-		return nil, cursor, NotMatchError("IntegerLiteral")
-	}
-	i, err := strconv.Atoi(literal)
-	if err != nil {
-		panic("Logic error")
-	}
-	return IntegerLiteralToken{int64(i)}, cursor + len(literal), nil
-}
-
-func FloatLiteral(parser *Parser, cursor int) (Token, int, error) {
-	cursor = parser.findNonWhiteSpace(cursor)
-	if cursor == -1 || cursor >= len(parser.text) {
-		return nil, cursor, NotMatchError("IntegerLiteral")
-	}
-	literal := REG_FLOAT_LITERAL.FindString(parser.text)
-	if literal == "" {
-		return nil, cursor, NotMatchError("FloatLiteral")
-	}
-	f, err := strconv.ParseFloat(literal, 64)
-	if err != nil {
-		panic("Logic error")
-	}
-	return FloatLiteralToken{f}, cursor + len(literal), nil
-}
-
-func ArgDeclWrapper(tokens []Token) Token {
+func AsArgDecl(tokens []Token) Token {
 	if len(tokens) != 3 {
 		panic(fmt.Sprintf("Should have 3 tokens: %v", tokens))
 	}
-	declName, ok1 := tokens[0].(IdentifierToken)
-	declType, ok2 := tokens[2].(IdentifierToken)
+	declName, ok1 := tokens[0].(IdentifierNode)
+	declType, ok2 := tokens[2].(IdentifierNode)
 	if !ok1 || !ok2 {
 		panic("Typecasting failure")
 	}
 	return ArgDeclToken{declName, declType}
 }
 
-var ArgDecl = Conjunction(ArgDeclWrapper, Identifier, Char(":"), Identifier)
+var ArgDecl = MatchAll(AsArgDecl, Identifier, char(":"), Identifier)
 
 func Token2ArgListToken(token Token) Token {
 	list := []ArgDeclToken{}
@@ -227,7 +181,7 @@ func Token2ArgListToken(token Token) Token {
 	return ArgListToken{list}
 }
 
-func ArgListWrapper(tokens []Token) Token {
+func AsArgList(tokens []Token) Token {
 	if len(tokens) != 3 {
 		panic(fmt.Sprintf("Should have 3 tokens: %v", tokens))
 	}
@@ -255,45 +209,43 @@ func ArgListWrapper(tokens []Token) Token {
 func ArgList(parser *Parser, cursor int) (Token, int, error) {
 	// TODO this accepts (arg,) which shouldn't be the case
 
-	return Disjunction(
+	return MatchOneOf(
 		Token2ArgListToken,
-		Conjunction(ArgListWrapper, ArgDecl, Char(","), ArgList),
+		MatchAll(AsArgList, ArgDecl, char(","), ArgList),
 		ArgDecl,
-		Empty,
+		EmptyExpression,
 	)(parser, cursor)
 }
 
-func FunctionDefWrapper(tokens []Token) Token {
+func AsFunctionDef(tokens []Token) Token {
 	if len(tokens) != 8 {
 		panic(fmt.Sprintf("Should have 8 tokens: %v", tokens))
 	}
-	name, ok1 := tokens[1].(IdentifierToken)
+	name, ok1 := tokens[1].(IdentifierNode)
 	arglist, ok2 := tokens[3].(ArgListToken)
-	block, ok3 := tokens[6].(BlockToken)
+	block, ok3 := tokens[6].(BlockNode)
 	if !ok1 || !ok2 || !ok3 {
 		fmt.Println(ok1, ok2, ok3)
 		panic("Typecasting failure")
 	}
-	return FunctionDefToken{name, arglist, block}
-}
 
-func FunctionDef(parser *Parser, cursor int) (Token, int, error) {
-	return Conjunction(
-		FunctionDefWrapper,
-		Keyword("function"), Identifier,
-		Char("("), ArgList, Char(")"),
-		Char("{"),
-		TryBlock,
-		Char("}"),
-	)(parser, cursor)
+	nametype := []NameType{}
+	for _, v := range arglist.ArgDecl {
+		nametype = append(nametype, NameType{v.NameToken.Name, v.TypeToken.Name})
+	}
+	return FunctionDefNode{name.Name, nametype, block}
 }
 
 func Token2ParamListToken(token Token) Token {
-	list := []Token{}
+	list := []Node{}
 	switch paramToken := token.(type) {
 	default:
 		// probably should wrap Expression instead of doing this
-		list = append(list, paramToken)
+		node, ok := paramToken.(Node)
+		if !ok {
+			panic("Typecasting failure")
+		}
+		list = append(list, node)
 	case ParamListToken:
 		list = append(list, paramToken.ParamList...)
 	case EmptyToken:
@@ -302,115 +254,156 @@ func Token2ParamListToken(token Token) Token {
 	return ParamListToken{list}
 }
 
-func ParamListWrapper(tokens []Token) Token {
+func AsParamList(tokens []Token) Token {
 	if len(tokens) != 3 {
 		panic(fmt.Sprintf("Should have 3 tokens: %v", tokens))
 	}
-	head := tokens[0]
-	tail, ok := Token2ParamListToken(tokens[2]).(ParamListToken)
-	if !ok {
+	head, ok1 := tokens[0].(Node)
+	tail, ok2 := Token2ParamListToken(tokens[2]).(ParamListToken)
+	if !ok1 || !ok2 {
 		panic("Typecasting failure")
 	}
-	newList := []Token{head}
+	newList := []Node{head}
 	newList = append(newList, tail.ParamList...)
 	return ParamListToken{newList}
 }
 
 func ParamList(parser *Parser, cursor int) (Token, int, error) {
-	return Disjunction(
+	return MatchOneOf(
 		Token2ParamListToken,
-		Conjunction(
-			ParamListWrapper,
-			Expression, Char(","), ParamList,
+		MatchAll(
+			AsParamList,
+			Expression, char(","), ParamList,
 		),
 		Expression,
-		Empty,
+		EmptyExpression,
 	)(parser, cursor)
 }
 
-func FunctionCallWrapper(tokens []Token) Token {
+func AsFunctionCall(tokens []Token) Token {
 	if len(tokens) != 4 {
 		panic(fmt.Sprintf("Should have 4 tokens: %v", tokens))
 	}
-	name, ok := tokens[0].(IdentifierToken)
+	name, ok := tokens[0].(IdentifierNode)
 	paramList := tokens[2].(ParamListToken)
 	if !ok {
 		panic("Typecasting failure")
 	}
-	return FunctionCallToken{name, paramList}
-}
-
-func FunctionCall(parser *Parser, cursor int) (Token, int, error) {
-	return Conjunction(
-		FunctionCallWrapper,
-		Identifier, Char("("), ParamList, Char(")"),
-	)(parser, cursor)
+	return FunctionCallNode{name.Name, paramList.ParamList}
 }
 
 func identity(token Token) Token {
 	return token
 }
 
-func Literal(parser *Parser, cursor int) (Token, int, error) {
-	return Disjunction(identity, IntegerLiteral, FloatLiteral)(parser, cursor)
-}
-
-var BinaryOperator = Disjunction(
-	identity,
-	Char("+"),
-	Char("-"),
-	Char("*"),
-	Char("/"),
-)
-
-func BinaryOperatorWrapper(tokens []Token) Token {
+func AsBinaryOperator(tokens []Token) Token {
 	if len(tokens) != 3 {
 		panic(fmt.Sprintf("Should have 3 tokens: %v", tokens))
 	}
-	operator, ok := tokens[1].(CharToken)
+	left, ok1 := tokens[0].(Node)
+	operator, ok2 := tokens[1].(CharToken)
+	right, ok3 := tokens[2].(Node)
 
-	if !ok {
+	if !ok1 || !ok2 || !ok3 {
 		panic("Typecasting failure")
 	}
-	return BinaryOperatorToken{tokens[0], operator, tokens[2]}
+	return BinaryOperatorNode{left, operator.Name, right}
 }
 
-func BracketExpressionWrapper(tokens []Token) Token {
+func AsBracketExpression(tokens []Token) Token {
 	if len(tokens) != 3 {
 		panic(fmt.Sprintf("Should have 3 tokens: %v", tokens))
 	}
 	return tokens[1]
 }
 
+func AsAssignment(tokens []Token) Token {
+	if len(tokens) != 3 {
+		panic(fmt.Sprintf("Should have 3 tokens: %v", tokens))
+	}
+	id, ok1 := tokens[0].(IdentifierNode)
+	expr, ok2 := tokens[2].(Node)
+	if !ok1 || !ok2 {
+		panic("Typecasting failure")
+	}
+
+	return AssignmentNode{id.Name, expr}
+}
+
+func AsBlock(tokens []Token) Token {
+	if len(tokens) != 2 {
+		panic(fmt.Sprintf("Should have 2 tokens: %v", tokens))
+	}
+	head, ok1 := tokens[0].(Node)
+	tail, ok2 := tokens[1].(BlockNode)
+	if !ok1 || !ok2 {
+		panic("Typecasting failure")
+	}
+	newList := []Node{}
+	newList = append(newList, head)
+	newList = append(newList, tail.ExprList...)
+	return BlockNode{newList}
+}
+
+func Token2BlockNode(token Token) Token {
+	list := []Node{}
+	switch blockToken := token.(type) {
+	default:
+		panic("Typecasting failure")
+	case BlockNode:
+		list = append(list, blockToken.ExprList...)
+	case Node:
+		list = append(list, blockToken)
+	case EmptyToken:
+		// do nothing
+	}
+	return BlockNode{list}
+}
+
+/* --- Keywords --- */
+
+var KEYWORD_DEF = keyword("def")
+
+/* --- Matchers --- */
+
+func EndOfFile(parser *Parser, cursor int) (Token, int, error) {
+	_, newCursor, err := parser.fetch(cursor)
+	if _, ok := err.(EOFError); ok {
+		return EOFToken{}, newCursor, nil
+	}
+	return nil, cursor, NotMatchError("EOF")
+}
+
+func EmptyExpression(parser *Parser, cursor int) (Token, int, error) {
+	return EmptyToken{}, cursor, nil
+}
+
+func Block(parser *Parser, cursor int) (Token, int, error) {
+	return MatchOneOf(
+		Token2BlockNode,
+		MatchAll(AsBlock, Expression, Block),
+		Expression,
+		EmptyExpression,
+	)(parser, cursor)
+}
+
 func Expression(parser *Parser, cursor int) (Token, int, error) {
-	return Disjunction(
+	return MatchOneOf(
 		identity,
-		Conjunction(
-			BinaryOperatorWrapper,
+		MatchAll(
+			AsBinaryOperator,
 			GuardedExpression, BinaryOperator, Expression,
 		),
 		GuardedExpression,
 	)(parser, cursor)
 }
 
-func AssignmentWrapper(tokens []Token) Token {
-	if len(tokens) != 3 {
-		panic(fmt.Sprintf("Should have 3 tokens: %v", tokens))
-	}
-	id, ok := tokens[0].(IdentifierToken)
-	if !ok {
-		panic("Typecasting failure")
-	}
-
-	return AssignmentToken{id, tokens[2]}
-}
-
 // prevents left recursion
 func GuardedExpression(parser *Parser, cursor int) (Token, int, error) {
-	return Disjunction(
+	return MatchOneOf(
 		identity,
-		Conjunction(BracketExpressionWrapper, Char("("), Expression, Char(")")),
-		Conjunction(AssignmentWrapper, Identifier, Char("="), Expression),
+		MatchAll(AsBracketExpression, char("("), Expression, char(")")),
+		MatchAll(AsAssignment, Identifier, char("="), Expression),
 		Literal,
 		Identifier,
 		FunctionDef,
@@ -418,40 +411,71 @@ func GuardedExpression(parser *Parser, cursor int) (Token, int, error) {
 	)(parser, cursor)
 }
 
-func BlockWrapper(tokens []Token) Token {
-	if len(tokens) != 2 {
-		panic(fmt.Sprintf("Should have 2 tokens: %v", tokens))
-	}
-	tail, ok := tokens[2].(BlockToken)
-	if ok {
-		panic("Typecasting failure")
-	}
-	newList := []Token{}
-	newList = append(newList, tokens[0])
-	for _, token := range tail.ExprList {
-		newList = append(newList, token)
-	}
-	return BlockToken{newList}
-}
+var BinaryOperator = MatchOneOf(
+	identity,
+	char("+"),
+	char("-"),
+	char("*"),
+	char("/"),
+)
 
-func Token2BlockToken(token Token) Token {
-	list := []Token{}
-	switch blockToken := token.(type) {
-	default:
-		list = append(list, blockToken)
-	case BlockToken:
-		list = append(list, blockToken.ExprList...)
-	case EmptyToken:
-		// do nothing
-	}
-	return BlockToken{list}
-}
-
-func TryBlock(parser *Parser, cursor int) (Token, int, error) {
-	return Disjunction(
-		Token2BlockToken,
-		Conjunction(BlockWrapper, Expression, TryBlock),
-		Expression,
-		Empty,
+func FunctionCall(parser *Parser, cursor int) (Token, int, error) {
+	return MatchAll(
+		AsFunctionCall,
+		Identifier, char("("), ParamList, char(")"),
 	)(parser, cursor)
 }
+
+func Literal(parser *Parser, cursor int) (Token, int, error) {
+	return MatchOneOf(identity, IntegerLiteral, FloatLiteral)(parser, cursor)
+}
+
+func FunctionDef(parser *Parser, cursor int) (Token, int, error) {
+	return MatchAll(
+		AsFunctionDef,
+		KEYWORD_DEF, Identifier,
+		char("("), ArgList, char(")"),
+		char("{"),
+		Block,
+		char("}"),
+	)(parser, cursor)
+}
+
+// TODO FIX THESE REGEXES
+var REG_INTEGER_LITERAL = regexp.MustCompile("[0-9]*")
+var REG_FLOAT_LITERAL = regexp.MustCompile("[0-9]*\\.[0-9]*")
+
+func IntegerLiteral(parser *Parser, cursor int) (Token, int, error) {
+	cursor = parser.findNonWhiteSpace(cursor)
+	if cursor == -1 || cursor >= len(parser.text) {
+		return nil, cursor, NotMatchError("IntegerLiteral")
+	}
+	literal := REG_INTEGER_LITERAL.FindString(parser.text[cursor:len(parser.text)])
+	if literal == "" {
+		return nil, cursor, NotMatchError("IntegerLiteral")
+	}
+	i, err := strconv.Atoi(literal)
+	if err != nil {
+		panic("Logic error")
+	}
+	return IntegerLiteralNode{int64(i)}, cursor + len(literal), nil
+}
+
+func FloatLiteral(parser *Parser, cursor int) (Token, int, error) {
+	cursor = parser.findNonWhiteSpace(cursor)
+	if cursor == -1 || cursor >= len(parser.text) {
+		return nil, cursor, NotMatchError("FloatLiteral")
+	}
+	literal := REG_FLOAT_LITERAL.FindString(parser.text)
+	if literal == "" {
+		return nil, cursor, NotMatchError("FloatLiteral")
+	}
+	f, err := strconv.ParseFloat(literal, 64)
+	if err != nil {
+		panic("Logic error")
+	}
+	return FloatLiteralNode{f}, cursor + len(literal), nil
+}
+
+// matcher aliases
+var EmptyFile = EndOfFile
