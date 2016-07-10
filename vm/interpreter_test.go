@@ -63,7 +63,7 @@ func TestBinaryInst(t *testing.T) {
 	interp := NewInterpreter()
 
 	// subtraction
-	f := []GimmickInstruction{
+	f := []Instruction{
 		PushInst(135),
 		PushInst(9939),
 		BinaryInst("-"),
@@ -81,7 +81,7 @@ func TestBinaryInst(t *testing.T) {
 	}
 
 	// addition
-	f = []GimmickInstruction{
+	f = []Instruction{
 		PushInst(1290889),
 		PushInst(89324783),
 		BinaryInst("+"),
@@ -99,7 +99,7 @@ func TestBinaryInst(t *testing.T) {
 	}
 
 	// multiply
-	f = []GimmickInstruction{
+	f = []Instruction{
 		PushInst(101033),
 		PushInst(-123873),
 		BinaryInst("*"),
@@ -117,7 +117,7 @@ func TestBinaryInst(t *testing.T) {
 	}
 
 	// divison
-	f = []GimmickInstruction{
+	f = []Instruction{
 		PushInst(100),
 		PushInst(3),
 		BinaryInst("/"),
@@ -134,7 +134,7 @@ func TestBinaryInst(t *testing.T) {
 		t.Error("Wrong result")
 	}
 
-	f = []GimmickInstruction{
+	f = []Instruction{
 		PushInst(100),
 		PushInst(0),
 		BinaryInst("/"),
@@ -150,7 +150,7 @@ func TestBinaryInst(t *testing.T) {
 func TestInvokeInst(t *testing.T) {
 	interp := NewInterpreter()
 
-	childFunc := []GimmickInstruction{
+	childFunc := []Instruction{
 		PushInst(100),
 		PushInst(100),
 		BinaryInst("+"),
@@ -158,7 +158,7 @@ func TestInvokeInst(t *testing.T) {
 
 	childID := interp.AddFunc(childFunc)
 
-	parentFunc := []GimmickInstruction{
+	parentFunc := []Instruction{
 		InvokeInst(childID),
 	}
 

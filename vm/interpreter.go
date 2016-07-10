@@ -3,7 +3,7 @@ package vm
 import "fmt"
 
 type Function struct {
-	Inst []GimmickInstruction
+	Inst []Instruction
 }
 
 type CallStack struct {
@@ -58,7 +58,7 @@ func NewInterpreter() *GimmickInterpreter {
 }
 
 // Name is stripped by the CodeBuilder, there's only ID
-func (interp *GimmickInterpreter) AddFunc(instructions []GimmickInstruction) int64 {
+func (interp *GimmickInterpreter) AddFunc(instructions []Instruction) int64 {
 	newFunc := &Function{instructions}
 	interp.Func = append(interp.Func, newFunc)
 	id := int64(len(interp.Func) - 1)
@@ -107,26 +107,32 @@ func (interp *GimmickInterpreter) Start() error {
 		curStack.PC += 1
 
 		// Yay!
-		err := inst.Exec(interp)
+		err := interp.Exec(inst)
 		if err != nil {
 			return fmt.Errorf("Inst %v failed: %v", inst, err)
 		}
 	}
 }
 
-/* --- Exec() --- */
-
-func (inst PushInstruction) Exec(interp *GimmickInterpreter) error {
-	interp.Stack.Push(inst.Arg1)
+func (interp *GimmickInterpreter) Exec(inst Instruction) error {
+	switch inst.Type {
+	case INST_PUSH:
+		interp.Stack.Push(inst.Arg1)
+		return nil
+	case INST_POP:
+		_, err := interp.Stack.Pop()
+		return err
+	case INST_ASSIGN:
+		return interp.ExecAssign(inst)
+	case INST_BINARY:
+		return interp.ExecBinary(inst)
+	case INST_INVOKE:
+		return interp.ExecInvoke(inst)
+	}
 	return nil
 }
 
-func (inst PopInstruction) Exec(interp *GimmickInterpreter) error {
-	_, err := interp.Stack.Pop()
-	return err
-}
-
-func (inst BinaryInstruction) Exec(interp *GimmickInterpreter) error {
+func (interp *GimmickInterpreter) ExecBinary(inst Instruction) error {
 	// for A <op> B, we expect the interpreter to push A then B
 	// thus B will be popped first, followed by A
 	vals, err := interp.Stack.Pops(2)
@@ -157,12 +163,12 @@ func (inst BinaryInstruction) Exec(interp *GimmickInterpreter) error {
 	}
 }
 
-func (inst InvokeInstruction) Exec(interp *GimmickInterpreter) error {
+func (interp *GimmickInterpreter) ExecInvoke(inst Instruction) error {
 	callstack := CallStack{inst.Arg1, 0}
 	interp.CallStack = append(interp.CallStack, &callstack)
 	return nil
 }
 
-func (inst AssignInstruction) Exec(interp *GimmickInterpreter) error {
+func (interp *GimmickInterpreter) ExecAssign(inst Instruction) error {
 	return nil
 }
