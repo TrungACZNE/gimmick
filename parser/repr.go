@@ -42,58 +42,58 @@ func PrettyPrint(str string, indentWidth int) string {
 	return buf
 }
 
-/* --- String representation of AST tokens --- */
+/* --- String representation of AST nodes --- */
 
-func (token IdentifierNode) String() string {
-	return fmt.Sprintf("{Identifier:%s}", token.Name)
+func (node IdentifierNode) String() string {
+	return fmt.Sprintf("{Identifier:%s}", node.Name)
 }
 
-func (token IntegerLiteralNode) String() string {
-	return fmt.Sprintf("{Int:%d}", token.Value)
+func (node IntegerLiteralNode) String() string {
+	return fmt.Sprintf("{Int:%d}", node.Value)
 }
 
-func (token FloatLiteralNode) String() string {
-	return fmt.Sprintf("{Float:%v}", token.Value)
+func (node FloatLiteralNode) String() string {
+	return fmt.Sprintf("{Float:%v}", node.Value)
 }
 
-func (token ParamListToken) String() string {
+func (node ParamListToken) String() string {
 	buf := ""
-	for i, token := range token.ParamList {
+	for i, node := range node.ParamList {
 		if i > 0 {
 			buf += ", "
 		}
-		buf += token.String()
+		buf += node.String()
 	}
 	return fmt.Sprintf("{ParamList:%s}", buf)
 }
 
-func (token FunctionDefNode) String() string {
-	return fmt.Sprintf("{FunctionDef:%s:%s:%s}", token.Name, NameTypeArrString(token.ArgList), token.Block.String())
+func (node FunctionDefNode) String() string {
+	return fmt.Sprintf("{FunctionDef:%s:%s:%s}", node.Name, NameTypeArrString(node.ArgList), node.Block.String())
 }
 
-func (token FunctionCallNode) String() string {
-	return fmt.Sprintf("{FunctionCall:%s:%s}", token.Name, token.ParamList)
+func (node FunctionCallNode) String() string {
+	return fmt.Sprintf("{FunctionCall:%s:%s}", node.Name, node.ParamList)
 }
 
-func (token BinaryOperatorNode) String() string {
-	return fmt.Sprintf("{BinaryOperatorNode:%s:%s:%s}", token.Left.String(), token.Operator, token.Right.String())
+func (node BinaryOperatorNode) String() string {
+	return fmt.Sprintf("{BinaryOperatorNode:%s:%s:%s}", node.Left.String(), node.Operator, node.Right.String())
 }
 
-func (token AssignmentNode) String() string {
-	return fmt.Sprintf("{AssignmentNode:%s:%s}", token.Dest, token.Expr.String())
+func (node AssignmentNode) String() string {
+	return fmt.Sprintf("{AssignmentNode:%s:%s}", node.Dest, node.Expr.String())
 }
 
-func (token BlockNode) String() string {
+func (node BlockNode) String() string {
 	buf := ""
-	for i, token := range token.ExprList {
+	for i, node := range node.ExprList {
 		if i > 0 {
 			buf += ", "
 		}
-		buf += token.String()
+		buf += node.String()
 	}
-	return fmt.Sprintf("{BlockNode:%s}", NodeArrString(token.ExprList))
+	return fmt.Sprintf("{BlockNode:%s}", NodeArrString(node.ExprList))
 }
 
-func (token ModuleNode) String() string {
-	return token.Block.String()
+func (node ModuleNode) String() string {
+	return node.Block.String()
 }
