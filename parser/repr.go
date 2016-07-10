@@ -2,85 +2,85 @@ package parser
 
 import "fmt"
 
-/* --- String representation of AST nodes --- */
+/* --- String representation of AST tokens --- */
 
-func (node EOFNode) String() string {
+func (token EOFToken) String() string {
 	return "<EOF>"
 }
 
-func (node EmptyNode) String() string {
+func (token EmptyToken) String() string {
 	return "<Empty>"
 }
 
-func (node IntegerLiteralNode) String() string {
-	return fmt.Sprintf("<Int:%d>", node.Value)
+func (token IntegerLiteralToken) String() string {
+	return fmt.Sprintf("<Int:%d>", token.Value)
 }
 
-func (node FloatLiteralNode) String() string {
-	return fmt.Sprintf("<Int:%v>", node.Value)
+func (token FloatLiteralToken) String() string {
+	return fmt.Sprintf("<Int:%v>", token.Value)
 }
 
-func (node KeywordNode) String() string {
-	return fmt.Sprintf("<Keyword:%s>", node.Name)
+func (token KeywordToken) String() string {
+	return fmt.Sprintf("<Keyword:%s>", token.Name)
 }
 
-func (node CharNode) String() string {
-	return fmt.Sprintf("<Char:%s>", node.Name)
+func (token CharToken) String() string {
+	return fmt.Sprintf("<Char:%s>", token.Name)
 }
 
-func (node IdentifierNode) String() string {
-	return fmt.Sprintf("<Identifier:%s>", node.Name)
+func (token IdentifierToken) String() string {
+	return fmt.Sprintf("<Identifier:%s>", token.Name)
 }
 
-func (node ArgDeclNode) String() string {
-	return fmt.Sprintf("<ArgDecl:%s:%s>", node.NameNode, node.TypeNode)
+func (token ArgDeclToken) String() string {
+	return fmt.Sprintf("<ArgDecl:%s:%s>", token.NameToken, token.TypeToken)
 }
 
-func (node ArgListNode) String() string {
+func (token ArgListToken) String() string {
 	buf := ""
-	for i, node := range node.ArgDecl {
+	for i, token := range token.ArgDecl {
 		if i > 0 {
 			buf += ", "
 		}
-		buf += node.String()
+		buf += token.String()
 	}
 	return fmt.Sprintf("<ArgList:%s>", buf)
 }
 
-func (node ParamListNode) String() string {
+func (token ParamListToken) String() string {
 	buf := ""
-	for i, node := range node.ParamList {
+	for i, token := range token.ParamList {
 		if i > 0 {
 			buf += ", "
 		}
-		buf += node.String()
+		buf += token.String()
 	}
 	return fmt.Sprintf("<ParamList:%s>", buf)
 }
 
-func (node FunctionDefNode) String() string {
-	return fmt.Sprintf("<FunctionDef:%s:%s:%s>", node.Name.String(), node.ArgList.String(), node.Block.String())
+func (token FunctionDefToken) String() string {
+	return fmt.Sprintf("<FunctionDef:%s:%s:%s>", token.Name.String(), token.ArgList.String(), token.Block.String())
 }
 
-func (node FunctionCallNode) String() string {
-	return fmt.Sprintf("<FunctionCall:%s:%s>", node.Name.String(), node.ParamList.String())
+func (token FunctionCallToken) String() string {
+	return fmt.Sprintf("<FunctionCall:%s:%s>", token.Name.String(), token.ParamList.String())
 }
 
-func (node BinaryOperatorNode) String() string {
-	return fmt.Sprintf("<BinaryOperatorNode:%s:%s:%s>", node.Left.String(), node.Operator.String(), node.Right.String())
+func (token BinaryOperatorToken) String() string {
+	return fmt.Sprintf("<BinaryOperatorToken:%s:%s:%s>", token.Left.String(), token.Operator.String(), token.Right.String())
 }
 
-func (node AssignmentNode) String() string {
-	return fmt.Sprintf("<AssignmentNode:%s:%s>", node.Dest.String(), node.Expr.String())
+func (token AssignmentToken) String() string {
+	return fmt.Sprintf("<AssignmentToken:%s:%s>", token.Dest.String(), token.Expr.String())
 }
 
-func (node BlockNode) String() string {
+func (token BlockToken) String() string {
 	buf := ""
-	for i, node := range node.ExprList {
+	for i, token := range token.ExprList {
 		if i > 0 {
 			buf += ", "
 		}
-		buf += node.String()
+		buf += token.String()
 	}
-	return fmt.Sprintf("<BlockNode:%s>", buf)
+	return fmt.Sprintf("<BlockToken:%s>", buf)
 }

@@ -5,18 +5,18 @@ import (
 	"testing"
 )
 
-func testWrapper(nodes []Node) Node {
-	if len(nodes) != 2 {
-		panic(fmt.Sprintf("Should have 2 nodes: %v", nodes))
+func testWrapper(tokens []Token) Token {
+	if len(tokens) != 2 {
+		panic(fmt.Sprintf("Should have 2 tokens: %v", tokens))
 	}
-	return nodes[0]
+	return tokens[0]
 }
 
 func pass(t *testing.T, funcName string, tryFunc TryFunc, text string) {
 	tryFunc = Conjunction(testWrapper, tryFunc, EndOfFile)
 	parser := NewParser(text)
-	nodes, _, err := tryFunc(parser, 0)
-	fmt.Println(nodes)
+	tokens, _, err := tryFunc(parser, 0)
+	fmt.Println(tokens)
 	if err != nil {
 		t.Errorf("Should not fail: %s(\"%s\") - %s", funcName, text, err)
 	}
@@ -25,9 +25,9 @@ func pass(t *testing.T, funcName string, tryFunc TryFunc, text string) {
 func fail(t *testing.T, funcName string, tryFunc TryFunc, text string) {
 	tryFunc = Conjunction(testWrapper, tryFunc, EndOfFile)
 	parser := NewParser(text)
-	nodes, _, err := tryFunc(parser, 0)
+	tokens, _, err := tryFunc(parser, 0)
 	if err == nil {
-		t.Errorf("Should not succeed: %s - %v", funcName, nodes)
+		t.Errorf("Should not succeed: %s - %v", funcName, tokens)
 	}
 }
 

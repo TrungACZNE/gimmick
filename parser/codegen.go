@@ -6,80 +6,80 @@ import . "github.com/trungaczne/gimmick/vm"
 
 // every expression *must* push to the stack
 
-func (node EOFNode) CodeGen(builder CodeBuilder) {
+func (token EOFToken) CodeGen(builder CodeBuilder) {
 }
 
-func (node IntegerLiteralNode) CodeGen(builder CodeBuilder) {
+func (token IntegerLiteralToken) CodeGen(builder CodeBuilder) {
 	builder.Push(
-		Instruction{INST_PUSH, node.Value, ARG_NOOP},
+		Instruction{INST_PUSH, token.Value, ARG_NOOP},
 	)
 }
 
-func (node FloatLiteralNode) CodeGen(builder CodeBuilder) {
+func (token FloatLiteralToken) CodeGen(builder CodeBuilder) {
 	builder.Push(
-		Instruction{INST_PUSH, int64(node.Value), ARG_NOOP},
+		Instruction{INST_PUSH, int64(token.Value), ARG_NOOP},
 	)
 }
 
-func (node KeywordNode) CodeGen(builder CodeBuilder) {
+func (token KeywordToken) CodeGen(builder CodeBuilder) {
 	// TODO fix this
 	panic("This shouldn't be reached")
 }
 
-func (node CharNode) CodeGen(builder CodeBuilder) {
+func (token CharToken) CodeGen(builder CodeBuilder) {
 	panic("This shouldn't be reached")
 }
 
-func (node IdentifierNode) CodeGen(builder CodeBuilder) {
+func (token IdentifierToken) CodeGen(builder CodeBuilder) {
 	builder.Push(
-		Instruction{INST_PUSH, builder.Resolve(node.Name), ARG_NOOP},
+		Instruction{INST_PUSH, builder.Resolve(token.Name), ARG_NOOP},
 	)
 }
 
-func (node ArgDeclNode) CodeGen(builder CodeBuilder) {
+func (token ArgDeclToken) CodeGen(builder CodeBuilder) {
 	panic("This shouldn't be reached")
 }
 
-func (node ArgListNode) CodeGen(builder CodeBuilder) {
+func (token ArgListToken) CodeGen(builder CodeBuilder) {
 	panic("This shouldn't be reached")
 }
 
-func (node ParamListNode) CodeGen(builder CodeBuilder) {
+func (token ParamListToken) CodeGen(builder CodeBuilder) {
 	panic("This shouldn't be reached")
 }
 
-func (node EmptyNode) CodeGen(builder CodeBuilder) {
+func (token EmptyToken) CodeGen(builder CodeBuilder) {
 }
 
-func (node FunctionDefNode) CodeGen(builder CodeBuilder) {
+func (token FunctionDefToken) CodeGen(builder CodeBuilder) {
 	signature := []NameType{}
-	for _, arg := range node.ArgList.ArgDecl {
+	for _, arg := range token.ArgList.ArgDecl {
 		signature = append(signature, NameType{
-			Name: arg.NameNode.Name,
-			Type: arg.TypeNode.Name,
+			Name: arg.NameToken.Name,
+			Type: arg.TypeToken.Name,
 		})
 
 	}
 	builder.DefineFunc(signature, func(scopedBuilder CodeBuilder) {
-		node.Block.CodeGen(scopedBuilder)
+		token.Block.CodeGen(scopedBuilder)
 	})
 }
 
-func (node FunctionCallNode) CodeGen(builder CodeBuilder) {
-	for _, arg := range node.ParamList.ParamList {
+func (token FunctionCallToken) CodeGen(builder CodeBuilder) {
+	for _, arg := range token.ParamList.ParamList {
 		// IMPLICATION: arguments are processed from left to right
 		arg.CodeGen(builder)
 	}
 	builder.Push(
-		Instruction{INST_INVOKE, builder.Resolve(node.Name.Name), ARG_NOOP},
+		Instruction{INST_INVOKE, builder.Resolve(token.Name.Name), ARG_NOOP},
 	)
 }
 
-func (node BinaryOperatorNode) CodeGen(builder CodeBuilder) {
-	node.Left.CodeGen(builder)
-	node.Right.CodeGen(builder)
+func (token BinaryOperatorToken) CodeGen(builder CodeBuilder) {
+	token.Left.CodeGen(builder)
+	token.Right.CodeGen(builder)
 	var op int64
-	switch node.Operator.Name {
+	switch token.Operator.Name {
 	case "+":
 		op = ARG_OP_ADD
 	case "-":
@@ -94,17 +94,17 @@ func (node BinaryOperatorNode) CodeGen(builder CodeBuilder) {
 	builder.Push(Instruction{INST_BINARY, op, ARG_NOOP})
 }
 
-func (node AssignmentNode) CodeGen(builder CodeBuilder) {
-	id := builder.ResolveOrDefine(node.Dest.Name)
+func (token AssignmentToken) CodeGen(builder CodeBuilder) {
+	id := builder.ResolveOrDefine(token.Dest.Name)
 	builder.Push(
 		Instruction{INST_ASSIGN, id, ARG_NOOP},
 	)
 }
 
-func (node BlockNode) CodeGen(builder CodeBuilder) {
-	for i, child := range node.ExprList {
+func (token BlockToken) CodeGen(builder CodeBuilder) {
+	for i, child := range token.ExprList {
 		child.CodeGen(builder)
-		if i != len(node.ExprList)-1 {
+		if i != len(token.ExprList)-1 {
 			// only the last expression should push to the stack
 			builder.Push(
 				Instruction{INST_POP, ARG_NOOP, ARG_NOOP},
