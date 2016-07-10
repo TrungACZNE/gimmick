@@ -53,7 +53,7 @@ func (token IntegerLiteralNode) String() string {
 }
 
 func (token FloatLiteralNode) String() string {
-	return fmt.Sprintf("{Int:%v}", token.Value)
+	return fmt.Sprintf("{Float:%v}", token.Value)
 }
 
 func (token ParamListToken) String() string {
@@ -92,4 +92,8 @@ func (token BlockNode) String() string {
 		buf += token.String()
 	}
 	return fmt.Sprintf("{BlockNode:%s}", NodeArrString(token.ExprList))
+}
+
+func (token ModuleNode) String() string {
+	return token.Block.String()
 }

@@ -345,6 +345,18 @@ func AsBlock(tokens []Token) Token {
 	return BlockNode{newList}
 }
 
+func AsModule(tokens []Token) Token {
+	if len(tokens) != 2 {
+		panic(fmt.Sprintf("Should have 2 tokens: %v", tokens))
+	}
+	head, ok1 := tokens[0].(BlockNode)
+	_, ok2 := tokens[1].(EOFToken)
+	if !ok1 || !ok2 {
+		panic("Typecasting failure")
+	}
+	return ModuleNode{head}
+}
+
 func Token2BlockNode(token Token) Token {
 	list := []Node{}
 	switch blockToken := token.(type) {
@@ -354,10 +366,23 @@ func Token2BlockNode(token Token) Token {
 		list = append(list, blockToken.ExprList...)
 	case Node:
 		list = append(list, blockToken)
+	case EOFToken:
+		// do nothing
 	case EmptyToken:
 		// do nothing
 	}
 	return BlockNode{list}
+}
+
+func Token2ModuleNode(token Token) Token {
+	switch module := token.(type) {
+	default:
+		panic("Typecasting failure")
+	case ModuleNode:
+		return module
+	case EOFToken:
+		return ModuleNode{BlockNode{[]Node{}}}
+	}
 }
 
 /* --- Keywords --- */
@@ -376,6 +401,14 @@ func EndOfFile(parser *Parser, cursor int) (Token, int, error) {
 
 func EmptyExpression(parser *Parser, cursor int) (Token, int, error) {
 	return EmptyToken{}, cursor, nil
+}
+
+func Module(parser *Parser, cursor int) (Token, int, error) {
+	return MatchOneOf(
+		Token2ModuleNode,
+		MatchAll(AsModule, Block, EndOfFile),
+		EndOfFile,
+	)(parser, cursor)
 }
 
 func Block(parser *Parser, cursor int) (Token, int, error) {

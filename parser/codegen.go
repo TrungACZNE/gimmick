@@ -53,3 +53,7 @@ func (node BlockNode) CodeGen(builder CodeBuilder) {
 		}
 	}
 }
+
+func (node ModuleNode) CodeGen(builder CodeBuilder) {
+	node.Block.CodeGen(builder)
+}

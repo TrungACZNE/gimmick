@@ -79,3 +79,7 @@ type AssignmentNode struct {
 type BlockNode struct {
 	ExprList []Node
 }
+
+type ModuleNode struct {
+	Block BlockNode
+}

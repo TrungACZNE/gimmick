@@ -1,6 +1,7 @@
 package vm
 
 import "fmt"
+import "github.com/trungaczne/gimmick/utils"
 
 type Function struct {
 	Inst []Instruction
@@ -17,39 +18,8 @@ type GimmickInterpreter struct {
 	CallStack []*CallStack
 
 	/// ... and data
-	Stack InterpStack
+	Stack utils.Stack
 	Heap  []int64
-}
-
-type InterpStack struct {
-	Value []int64
-}
-
-func (stack *InterpStack) Push(value int64) {
-	stack.Value = append(stack.Value, value)
-}
-
-func (stack *InterpStack) Pop() (int64, error) {
-	if len(stack.Value) == 0 {
-		return -1, fmt.Errorf("Not enough values to pop from stack")
-	}
-	l := len(stack.Value) - 1
-	val := stack.Value[l]
-	stack.Value = stack.Value[0:l]
-	return val, nil
-}
-
-func (stack *InterpStack) Pops(num int64) ([]int64, error) {
-	l := int64(len(stack.Value) - 1)
-	if l+1 < num {
-		return []int64{}, fmt.Errorf("Not enough values to pop from stack")
-	}
-	val := make([]int64, num)
-	for i := int64(0); i < num; i++ {
-		val[i] = stack.Value[l-i]
-	}
-	stack.Value = stack.Value[0 : l-num+1]
-	return val, nil
 }
 
 func NewInterpreter() *GimmickInterpreter {
@@ -135,9 +105,17 @@ func (interp *GimmickInterpreter) Exec(inst Instruction) error {
 func (interp *GimmickInterpreter) ExecBinary(inst Instruction) error {
 	// for A <op> B, we expect the interpreter to push A then B
 	// thus B will be popped first, followed by A
-	vals, err := interp.Stack.Pops(2)
+	raw, err := interp.Stack.Pops(2)
 	if err != nil {
 		return err
+	}
+	vals := []int64{}
+	for _, v := range raw {
+		vi, ok := v.(int64)
+		if !ok {
+			panic("Typecasting failure")
+		}
+		vals = append(vals, vi)
 	}
 	left := vals[1]
 	right := vals[0]

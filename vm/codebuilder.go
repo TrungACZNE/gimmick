@@ -1,5 +1,7 @@
 package vm
 
+import "github.com/trungaczne/gimmick/utils"
+
 /* --- Generic code builder, hopefully extensible --- */
 
 type NameType struct {
@@ -39,17 +41,8 @@ func NewScope() Scope {
 	return Scope{make(map[string]Symbol)}
 }
 
-type ScopeStack struct {
-	Stack []Scope
-}
-
-// PushScope creates a new scope
-func (stack ScopeStack) PushScope() {
-	stack.Stack = append(stack.Stack, NewScope())
-}
-
 type GimmickBuilder struct {
-	Scopes ScopeStack
+	ScopeStack utils.Stack
 }
 
 // Interface methods
